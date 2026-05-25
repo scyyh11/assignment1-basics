@@ -29,7 +29,8 @@ def run_linear(
         Float[Tensor, "... d_out"]: The transformed output of your linear module.
     """
 
-    raise NotImplementedError
+    # return in_features @ weights.T
+    return torch.einsum("...i,oi->...o", in_features, weights)
 
 
 def run_embedding(
@@ -51,7 +52,9 @@ def run_embedding(
         Float[Tensor, "... d_model"]: Batch of embeddings returned by your Embedding layer.
     """
 
-    raise NotImplementedError
+    # return [ weights[token_id] for token_id in token_ids]
+
+    return weights[token_ids]
 
 
 def run_swiglu(
@@ -104,7 +107,17 @@ def run_scaled_dot_product_attention(
     Returns:
         Float[Tensor, " ... queries d_v"]: Output of SDPA
     """
-    raise NotImplementedError
+
+    d_k = Q.shape[-1]
+    attn_scores = Q @ K.transpose(-1,-2) / d_k ** 0.5
+
+    if mask is not None:
+        attn_scores = attn_scores.masked_fill(~mask, float('-inf'))
+
+    weights = run_softmax(attn_scores, -1)
+
+    return weights @ V
+
 
 
 def run_multihead_self_attention(
@@ -431,7 +444,10 @@ def run_softmax(in_features: Float[Tensor, " ..."], dim: int) -> Float[Tensor, "
         Float[Tensor, "..."]: Tensor of with the same shape as `in_features` with the output of
         softmax normalizing the specified `dim`.
     """
-    raise NotImplementedError
+
+    exp = torch.exp(in_features - in_features.max(dim=dim, keepdim=True).values)
+    return exp / exp.sum(dim=dim, keepdim=True)
+
 
 
 def run_cross_entropy(
