@@ -11,8 +11,7 @@ import os
 import regex as re
 import heapq
 from functools import lru_cache
-from collections import Counter, defaultdict
-from typing import Any
+from collections import defaultdict
 
 
 def _get_pretokenization_pattern() -> str:
@@ -456,7 +455,7 @@ def train_bpe(
     words: dict[tuple[bytes, ...], int] = {}
     wget = words.get
 
-    with open(input_path, "r", encoding="utf-8") as f:
+    with open(input_path, encoding="utf-8") as f:
         text = f.read()
 
     segments = [text] if split_re is None else split_re.split(text)

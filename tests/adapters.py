@@ -31,7 +31,6 @@ def run_linear(
     Returns:
         Float[Tensor, "... d_out"]: The transformed output of your linear module.
     """
-
     layer = Linear(d_in, d_out)
     layer.weight.data = weights
     return layer(in_features)
@@ -55,7 +54,6 @@ def run_embedding(
     Returns:
         Float[Tensor, "... d_model"]: Batch of embeddings returned by your Embedding layer.
     """
-
     layer = Embedding(vocab_size, d_model)
     layer.weight.data = weights
     return layer(token_ids)
@@ -108,9 +106,7 @@ def run_scaled_dot_product_attention(
     Returns:
         Float[Tensor, " ... queries d_v"]: Output of SDPA
     """
-
     return F.scaled_dot_product_attention(Q, K, V, mask=mask)
-
 
 
 def run_multihead_self_attention(
@@ -473,7 +469,7 @@ def run_cross_entropy(
     Returns:
         Float[Tensor, ""]: The average cross-entropy loss across examples.
     """
-    raise NotImplementedError
+    return F.cross_entropy(inputs, targets)
 
 
 def run_gradient_clipping(parameters: Iterable[torch.nn.Parameter], max_l2_norm: float) -> None:
@@ -485,7 +481,7 @@ def run_gradient_clipping(parameters: Iterable[torch.nn.Parameter], max_l2_norm:
 
     The gradients of the parameters (parameter.grad) should be modified in-place.
     """
-    raise NotImplementedError
+    return F.gradient_clipping(parameters, max_l2_norm)
 
 
 def get_adamw_cls() -> Any:
