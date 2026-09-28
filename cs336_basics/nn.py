@@ -67,6 +67,8 @@ class RoPE(nn.Module):
         # Buffers move with .to(device) but aren't trainable params.
         self.register_buffer("cos_cache", angles.cos(), persistent=False)
         self.register_buffer("sin_cache", angles.sin(), persistent=False)
+        self.cos_cache: Tensor
+        self.sin_cache: Tensor
 
     def forward(
         self,
