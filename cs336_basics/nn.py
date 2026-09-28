@@ -65,10 +65,8 @@ class RoPE(nn.Module):
         positions = torch.arange(max_seq_len, dtype=torch.float32)
         angles = positions.unsqueeze(-1) * inv_freq
         # Buffers move with .to(device) but aren't trainable params.
-        self.register_buffer("cos_cache", angles.cos(), persistent=False)
-        self.register_buffer("sin_cache", angles.sin(), persistent=False)
-        self.cos_cache: Tensor
-        self.sin_cache: Tensor
+        self.cos_cache = nn.Buffer(angles.cos(), persistent=False)
+        self.sin_cache = nn.Buffer(angles.sin(), persistent=False)
 
     def forward(
         self,
