@@ -134,3 +134,44 @@ class MultiHeadSelfAttention(nn.Module):
 
         out = rearrange(out, "... h s d -> ... s (h d)")
         return self.o_proj(out)
+
+
+class TransformerBlock(nn.Module):
+    def __init__(
+        self,
+        d_model: int,
+        num_heads: int,
+        d_ff: int,
+        max_seq_len: int,
+        theta: float,
+    ) -> None:
+        super().__init__()
+        assert d_model % num_heads == 0
+        self.d_model = d_model
+        self.num_heads = num_heads
+        self.d_ff = d_ff
+        self.max_seq_len = max_seq_len
+        self.theta = theta
+
+        self.norm1 = RMSNorm(d_model=d_model)  # Attention 前
+        self.norm2 = RMSNorm(d_model=d_model)  # FFN 前
+
+        self.MHA = MultiHeadSelfAttention(
+            d_model=self.d_model,
+            num_heads=self.num_heads,
+            use_rope=True,
+            max_seq_len=self.max_seq_len,
+            theta=self.theta,
+        )
+
+        self.ffn = SwiGLU(self.d_model, self.d_ff)
+
+    def forward(
+        self,
+        x: Float[Tensor, " ... sequence_length d_model"],
+    ) -> Float[Tensor, " ... sequence_length d_model"]:
+        h = x + self.MHA(self.norm1(x))
+
+        z = self.ffn(self.norm2(h))
+
+        return h + z
