@@ -64,7 +64,6 @@ class RoPE(nn.Module):
         inv_freq = theta ** (-2 * i / d_k)
         positions = torch.arange(max_seq_len, dtype=torch.float32)
         angles = positions.unsqueeze(-1) * inv_freq
-        # Buffers move with .to(device) but aren't trainable params.
         self.cos_cache = nn.Buffer(angles.cos(), persistent=False)
         self.sin_cache = nn.Buffer(angles.sin(), persistent=False)
 
@@ -175,3 +174,52 @@ class TransformerBlock(nn.Module):
         z = self.ffn(self.norm2(h))
 
         return h + z
+
+
+class TransformerLM(nn.Module):
+    def __init__(
+        self,
+        vocab_size: int,
+        context_length: int,
+        d_model: int,
+        num_layers: int,
+        num_heads: int,
+        d_ff: int,
+        rope_theta: float,
+    ) -> None:
+        super().__init__()
+        assert d_model % num_heads == 0
+        self.vocab_size = vocab_size
+        self.context_length = context_length
+        self.d_model = d_model
+        self.num_layers = num_layers
+        self.num_heads = num_heads
+        self.d_ff = d_ff
+        self.rope_theta = rope_theta
+
+        self.embedding = Embedding(vocab_size=self.vocab_size, d_model=self.d_model)
+
+        for i in range(num_layers):
+            block = TransformerBlock(
+                d_model=self.d_model,
+                num_heads=self.num_heads,
+                d_ff=self.d_ff,
+                max_seq_len=self.context_length,
+                theta=self.rope_theta,
+            )
+            self.add_module(f"block_{i}", block)
+
+        self.norm = RMSNorm(d_model=self.d_model)
+        self.lm_head = Linear(d_in=self.d_model, d_out=self.vocab_size)
+
+    def forward(
+        self,
+        x: Int[Tensor, " ... sequence_length"],
+    ) -> Float[Tensor, " ... sequence_length vocab_size"]:
+        x = self.embedding(x)
+        for i in range(self.num_layers):
+            block = getattr(self, f"block_{i}")
+            x = block(x)
+        x = self.norm(x)
+        x = self.lm_head(x)
+        return x

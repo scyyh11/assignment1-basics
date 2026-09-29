@@ -10,7 +10,16 @@ from jaxtyping import Bool, Float, Int
 from torch import Tensor
 
 from cs336_basics import functional as F
-from cs336_basics.nn import Embedding, Linear, MultiHeadSelfAttention, RMSNorm, RoPE, SwiGLU, TransformerBlock
+from cs336_basics.nn import (
+    Embedding,
+    Linear,
+    MultiHeadSelfAttention,
+    RMSNorm,
+    RoPE,
+    SwiGLU,
+    TransformerBlock,
+    TransformerLM,
+)
 
 
 def run_linear(
@@ -185,9 +194,7 @@ def run_multihead_self_attention_with_rope(
         Float[Tensor, " ... sequence_length d_model"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    layer = MultiHeadSelfAttention(
-        d_model, num_heads, use_rope=True, max_seq_len=max_seq_len, theta=theta
-    )
+    layer = MultiHeadSelfAttention(d_model, num_heads, use_rope=True, max_seq_len=max_seq_len, theta=theta)
     layer.q_proj.weight.data = q_proj_weight
     layer.k_proj.weight.data = k_proj_weight
     layer.v_proj.weight.data = v_proj_weight
@@ -381,7 +388,31 @@ def run_transformer_lm(
         Float[Tensor, "batch_size sequence_length vocab_size"]: Tensor with the predicted unnormalized
         next-word distribution for each token.
     """
-    raise NotImplementedError
+    lm = TransformerLM(
+        vocab_size=vocab_size,
+        context_length=context_length,
+        d_model=d_model,
+        num_layers=num_layers,
+        num_heads=num_heads,
+        d_ff=d_ff,
+        rope_theta=rope_theta,
+    )
+    lm.embedding.weight.data = weights["token_embeddings.weight"]
+    for i in range(num_layers):
+        block = getattr(lm, f"block_{i}")
+        block.MHA.q_proj.weight.data = weights[f"layers.{i}.attn.q_proj.weight"]
+        block.MHA.k_proj.weight.data = weights[f"layers.{i}.attn.k_proj.weight"]
+        block.MHA.v_proj.weight.data = weights[f"layers.{i}.attn.v_proj.weight"]
+        block.MHA.o_proj.weight.data = weights[f"layers.{i}.attn.output_proj.weight"]
+        block.norm1.weight.data = weights[f"layers.{i}.ln1.weight"]
+        block.norm2.weight.data = weights[f"layers.{i}.ln2.weight"]
+        block.ffn.w1.weight.data = weights[f"layers.{i}.ffn.w1.weight"]
+        block.ffn.w2.weight.data = weights[f"layers.{i}.ffn.w2.weight"]
+        block.ffn.w3.weight.data = weights[f"layers.{i}.ffn.w3.weight"]
+    lm.norm.weight.data = weights["ln_final.weight"]
+    lm.lm_head.weight.data = weights["lm_head.weight"]
+
+    return lm(in_indices)
 
 
 def run_rmsnorm(
@@ -461,7 +492,6 @@ def run_softmax(in_features: Float[Tensor, " ..."], dim: int) -> Float[Tensor, "
     """
 
     return F.softmax(in_features, dim=dim)
-
 
 
 def run_cross_entropy(
